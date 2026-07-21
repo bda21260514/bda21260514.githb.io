@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>건반이 흐르다</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14141c;
+    --bg-2: #1b1b26;
+    --lane-a: #1e1e2c;
+    --lane-b: #232333;
+    --tile: #7dd3fc;
+    --tile-edge: #38bdf8;
+    --tile-glow: rgba(125,211,252,0.35);
+    --ivory: #f5f0e6;
+    --ivory-dim: #a8a3b5;
+    --gold: #fbbf24;
+    --red: #fb5b4a;
+    --line: #33334a;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background: radial-gradient(120% 100% at 50% -10%, #1c1c2a 0%, var(--bg) 55%);
+    font-family: 'Inter', sans-serif;
+    color: var(--ivory);
+    user-select: none;
+  }
+  .stage{
+    position: relative;
+    width: 100%;
+    height: 100dvh;
+    max-width: 520px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .hud{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 22px 24px 14px;
+    position: relative; z-index: 5;
+  }
+  .hud .brand{
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    color: var(--ivory-dim);
+    opacity: 0.85;
+  }
+  .hud .score{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 34px;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ivory);
+  }
+  .hud .best{
+    font-size: 11px;
+    color: var(--ivory-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    margin-top: 2px;
+  }
+  .board{
+    position: relative;
+    flex: 1;
+    display: flex;
+    border-top: 1px solid var(--line);
+  }
+  .lane{
+    position: relative;
+    flex: 1;
+    border-right: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .lane:nth-child(odd){ background: var(--lane-a); }
+  .lane:nth-child(even){ background: var(--lane-b); }
+  .lane:last-child{ border-right: none; }
+  .strike-line{
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.7;
+    z-index: 3;
+    pointer-events: none;
+    box-shadow: 0 0 12px 1px rgba(251,191,36,0.5);
+  }
+  .tile{
+    position: absolute;
+    left: 4px; right: 4px;
+    top: -160px;
+    height: 140px;
+    background: linear-gradient(180deg, var(--tile), var(--tile-edge));
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    box-shadow: 0 0 18px var(--tile-glow), inset 0 1px 0 rgba(255,255,255,0.4);
+    will-change: transform;
+  }
+  .tile.note::before{
+    content: attr(data-note);
+    position: absolute;
+    bottom: 10px; left: 0; right: 0;
+    text-align: center;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 14px;
+    color: #0c3a52;
+    opacity: 0.75;
+  }
+  .hit-flash{
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 130px;
+    background: radial-gradient(60% 100% at 50% 100%, rgba(251,191,36,0.45), transparent 70%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .keys{
+    display: flex;
+    height: 100px;
+    border-top: 1px solid var(--line);
+    background: linear-gradient(180deg, #1a1a26, #0f0f18);
+  }
+  .key{
+    flex: 1;
+    position: relative;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 60ms ease;
+  }
+  .key:last-child{ border-right: none; }
+  .key .letter{
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--ivory);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .key span.note{
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--ivory-dim);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  .key.active{
+    background: linear-gradient(180deg, rgba(251,191,36,0.28), rgba(251,191,36,0.04));
+  }
+  .key.active .letter{
+    background: var(--gold);
+    color: #14141c;
+    border-color: var(--gold);
+  }
+  .key.wrong{
+    background: linear-gradient(180deg, rgba(251,91,74,0.32), rgba(251,91,74,0.05));
+  }
+  .key.wrong .letter{
+    background: var(--red);
+    color: #14141c;
+    border-color: var(--red);
+  }
+  .overlay{
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px;
+    background: rgba(20,20,28,0.92);
+    backdrop-filter: blur(6px);
+    z-index: 10;
+    text-align: center;
+    padding: 32px;
+    transition: opacity 0.35s ease;
+  }
+  .overlay.hidden{ opacity: 0; pointer-events: none; }
+  .overlay h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 40px;
+    margin: 0;
+    letter-spacing: -0.01em;
+    color: var(--ivory);
+  }
+  .overlay p.sub{
+    font-size: 14px;
+    color: var(--ivory-dim);
+    max-width: 300px;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .keyrow{
+    display: flex;
+    gap: 10px;
+    margin: 4px 0;
+  }
+  .keyrow .kbadge{
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--tile);
+  }
+  .overlay .big-score{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 64px;
+    color: var(--gold);
+    line-height: 1;
+    margin: 4px 0;
+  }
+  .overlay .new-best{
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    opacity: 0.9;
+  }
+  .btn{
+    margin-top: 6px;
+    padding: 13px 30px;
+    border-radius: 999px;
+    border: 1px solid var(--gold);
+    background: transparent;
+    color: var(--gold);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .btn:active{
+    background: var(--gold);
+    color: #14141c;
+  }
+  .divider{
+    width: 28px; height: 1px;
+    background: var(--line);
+    margin: 2px 0;
+  }
+  .keyhint{
+    position: absolute;
+    top: 12px; left: 0; right: 0;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--ivory-dim);
+    opacity: 0.55;
+    z-index: 4;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="hud">
+    <div>
+      <div class="score" id="score">0</div>
+      <div class="best">최고 기록 <span id="best">0</span></div>
+    </div>
+    <div class="brand">건반이 흐르다</div>
+  </div>
+
+  <div class="board" id="board">
+    <div class="strike-line" id="strikeLine"></div>
+    <div class="lane" data-lane="0"><div class="hit-flash"></div></div>
+    <div class="lane" data-lane="1"><div class="hit-flash"></div></div>
+    <div class="lane" data-lane="2"><div class="hit-flash"></div></div>
+    <div class="lane" data-lane="3"><div class="hit-flash"></div></div>
+    <div class="keyhint">타일이 아래 줄에 닿는 순간, W A S D를 누르세요</div>
+  </div>
+
+  <div class="keys" id="keys">
+    <div class="key" data-lane="0"><div class="letter">W</div><span class="note">도</span></div>
+    <div class="key" data-lane="1"><div class="letter">A</div><span class="note">미</span></div>
+    <div class="key" data-lane="2"><div class="letter">S</div><span class="note">솔</span></div>
+    <div class="key" data-lane="3"><div class="letter">D</div><span class="note">도</span></div>
+  </div>
+
+  <div class="overlay" id="startOverlay">
+    <h1>건반이 흐르다</h1>
+    <p class="sub">타일이 흐르는 순간, 손끝으로 붙잡으세요.</p>
+    <div class="keyrow">
+      <div class="kbadge">W</div>
+      <div class="kbadge">A</div>
+      <div class="kbadge">S</div>
+      <div class="kbadge">D</div>
+    </div>
+    <p class="sub" style="opacity:0.7;">타일이 노란 줄을 지날 때, 같은 열의 키를 누르세요.</p>
+    <div class="divider"></div>
+    <button class="btn" id="startBtn">시작하기</button>
+  </div>
+
+  <div class="overlay hidden" id="overOverlay">
+    <p class="sub" style="opacity:0.6; margin-bottom:-6px;">멈춘 지점</p>
+    <div class="big-score" id="finalScore">0</div>
+    <div class="new-best" id="newBest" style="display:none;">최고 기록 경신</div>
+    <div class="divider"></div>
+    <button class="btn" id="retryBtn">다시 흐르기</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const LANES = 4;
+  const board = document.getElementById('board');
+  const lanes = Array.from(document.querySelectorAll('.lane'));
+  const keys = Array.from(document.querySelectorAll('.key'));
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const finalScoreEl = document.getElementById('finalScore');
+  const newBestEl = document.getElementById('newBest');
+  const startOverlay = document.getElementById('startOverlay');
+  const overOverlay = document.getElementById('overOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const strikeLine = document.getElementById('strikeLine');
+
+  let best = 0;
+  try { best = parseInt(localStorage.getItem('pt_best') || '0', 10) || 0; } catch(e) { best = 0; }
+  bestEl.textContent = best;
+
+  let boardH = 0, laneW = 0;
+  let running = false;
+  let score = 0;
+  let speed = 0;
+  let spawnTimer = 0;
+  let spawnInterval = 850;
+  let tiles = [];
+  let lastTime = 0;
+  let strikeY = 0;
+  const tileH = 140;
+  const HIT_ZONE = 120;
+
+  let audioCtx = null;
+  function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  const noteFreqs = [261.63, 329.63, 392.00, 523.25];
+  function playNote(lane){
+    ensureAudio();
+    const freq = noteFreqs[lane];
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.95);
+  }
+  function playWrong(){
+    ensureAudio();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(110, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.3);
+  }
+
+  function measure(){
+    boardH = board.clientHeight;
+    laneW = lanes[0].clientWidth;
+    strikeY = boardH - 118;
+    strikeLine.style.top = strikeY + 'px';
+  }
+  window.addEventListener('resize', measure);
+
+  function reset(){
+    tiles.forEach(t => t.el.remove());
+    tiles = [];
+    score = 0;
+    speed = 0.28;
+    spawnInterval = 820;
+    spawnTimer = 0;
+    scoreEl.textContent = '0';
+    keys.forEach(k => { k.classList.remove('active','wrong'); });
+  }
+
+  const noteNames = ['도','미','솔','도'];
+  function spawnTile(){
+    const lane = Math.floor(Math.random() * LANES);
+    const el = document.createElement('div');
+    el.className = 'tile note';
+    el.dataset.note = noteNames[lane];
+    el.style.top = (-tileH) + 'px';
+    lanes[lane].appendChild(el);
+    tiles.push({ el, lane, y: -tileH, h: tileH, hit: false, passed: false });
+  }
+
+  function endGame(){
+    running = false;
+    finalScoreEl.textContent = score;
+    if(score > best){
+      best = score;
+      try { localStorage.setItem('pt_best', String(best)); } catch(e){}
+      newBestEl.style.display = 'block';
+    } else {
+      newBestEl.style.display = 'none';
+    }
+    bestEl.textContent = best;
+    overOverlay.classList.remove('hidden');
+  }
+
+  function flashKey(lane, cls){
+    const k = keys[lane];
+    k.classList.add(cls);
+    setTimeout(()=> k.classList.remove(cls), 140);
+  }
+
+  function flashLane(lane){
+    const flash = lanes[lane].querySelector('.hit-flash');
+    flash.style.transition = 'none';
+    flash.style.opacity = '1';
+    requestAnimationFrame(()=>{
+      flash.style.transition = 'opacity 220ms ease';
+      flash.style.opacity = '0';
+    });
+  }
+
+  function handleLane(lane){
+    if(!running) return;
+    let candidate = null;
+    for(const t of tiles){
+      if(t.lane !== lane || t.hit || t.passed) continue;
+      const bottom = t.y + t.h;
+      if(bottom >= strikeY - HIT_ZONE && t.y <= strikeY + 20){
+        if(!candidate || t.y > candidate.y) candidate = t;
+      }
+    }
+    if(candidate){
+      candidate.hit = true;
+      candidate.el.style.transition = 'opacity 120ms ease, transform 120ms ease';
+      candidate.el.style.opacity = '0';
+      candidate.el.style.transform = 'scale(0.94)';
+      setTimeout(()=> candidate.el.remove(), 130);
+      score += 1;
+      scoreEl.textContent = score;
+      playNote(lane);
+      flashKey(lane, 'active');
+      flashLane(lane);
+      speed = Math.min(0.62, 0.28 + score * 0.004);
+      spawnInterval = Math.max(420, 820 - score * 4);
+    } else {
+      playWrong();
+      flashKey(lane, 'wrong');
+      endGame();
+    }
+  }
+
+  keys.forEach(k => {
+    k.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const lane = parseInt(k.dataset.lane, 10);
+      handleLane(lane);
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const map = { 'w': 0, 'a': 1, 's': 2, 'd': 3 };
+    const key = e.key.toLowerCase();
+    if(map.hasOwnProperty(key) && running){
+      e.preventDefault();
+      handleLane(map[key]);
+    }
+  });
+
+  function loop(ts){
+    if(!running) return;
+    if(!lastTime) lastTime = ts;
+    const dt = ts - lastTime;
+    lastTime = ts;
+
+    spawnTimer += dt;
+    if(spawnTimer >= spawnInterval){
+      spawnTimer = 0;
+      spawnTile();
+    }
+
+    for(const t of tiles){
+      if(t.hit) continue;
+      t.y += speed * dt;
+      t.el.style.top = t.y + 'px';
+      if(!t.passed && t.y > strikeY + 20){
+        t.passed = true;
+        endGame();
+        break;
+      }
+    }
+    tiles = tiles.filter(t => t.el.isConnected);
+
+    if(running) requestAnimationFrame(loop);
+  }
+
+  function startGame(){
+    ensureAudio();
+    measure();
+    reset();
+    startOverlay.classList.add('hidden');
+    overOverlay.classList.add('hidden');
+    running = true;
+    lastTime = 0;
+    requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', startGame);
+  retryBtn.addEventListener('click', startGame);
+
+  measure();
+})();
+</script>
+
+</body>
+</html>
